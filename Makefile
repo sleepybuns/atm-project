@@ -1,7 +1,10 @@
 CC = gcc
 CFLAGS = -fno-stack-protector -z execstack -Wall -Iutil -Iatm -Ibank -Irouter -I.
 
-all: bin/atm bin/bank bin/router
+all: bin bin/atm bin/bank bin/router
+
+bin:
+	mkdir -p bin
 
 bin/atm : atm/atm-main.c atm/atm.c
 	${CC} ${CFLAGS} atm/atm.c atm/atm-main.c -o bin/atm
