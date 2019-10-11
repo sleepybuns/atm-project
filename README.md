@@ -12,6 +12,8 @@ teams' designs! We have tried to make these instructions as explicit
 as possible. Read them carefully; *if anything is unclear, please ask
 for clarification well in advance.*
 
+[[TOC]]
+
 ## Overview
 
  1. You may work in teams of at most four people. Sign up for your
@@ -135,3 +137,20 @@ protocol's design and security. When you design them, keep in mind:
  * Otherwise, if successful, print "`Successfully initialized bank state`"
    and return value 0.
 
+#### The `bank` program
+
+#### The `atm` program
+
+### Threat model
+
+### Part 1 Deliverables
+
+## Part 2 -- Attacking Other Teams' Implementations
+
+### Part 2 Deliverables
+
+## Grading
+
+### Part 1
+
+### Part 2
