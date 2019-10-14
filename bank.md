@@ -44,7 +44,7 @@ The bank should support the following commands:
          name, then print
          
              Error:  user <user-name> already exists
-	 
+         
          There should be no side effects in this case.
        * Otherwise, it should create a user named `<user-name>` in
          the bank with an initial balance of `$<balance>`. It should
@@ -54,12 +54,12 @@ The bank should support the following commands:
          files, the contents can be whatever you want: it's part of your
          design.
           * If it is unable to create the file, then it should print
-	    
+            
                 Error creating card file for user <user-name>
             
             and roll back any changes the bank may have made.
           * Otherwise, if it successfully creates the file, then it should
-	    print
+            print
 
                 Created user <user-name>
 
