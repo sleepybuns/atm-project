@@ -55,7 +55,7 @@ The bank should support the following commands:
          design.
           * If it is unable to create the file, then it should print
 	    
-	        Error creating card file for user <user-name>
+                Error creating card file for user <user-name>
             
             and roll back any changes the bank may have made.
           * Otherwise, if it successfully creates the file, then it should
