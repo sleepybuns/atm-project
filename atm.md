@@ -52,7 +52,7 @@ The ATM should support the following commands:
 
         * Otherwise, if the inputs to the command are invalid, then print
 
-             Usage: begin-session <user-name>
+              Usage: begin-session <user-name>
 
           There should be no side effects in this case.
         * Otherwise, if there is no such user registered with the bank,
