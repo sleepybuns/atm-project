@@ -1,6 +1,66 @@
 # Attacking Other Teams' Implementations
 
-***TBD***
+In the second phase of the project, you will *individually* evaluate
+and attack another team's system. You get to select a target, but you
+*may not* attack your own team's phase 1 submission.
+
+When the break-it phase begins, all of the build-it repositories will
+be made available for you to clone. You may find these at
+https://gitlab.cs.umd.edu/search?utf8=%E2%9C%93&search=atm, which
+should return a list of search results for repositories matching
+"atm". Make sure you select one that is under `cmsc414-marsh/teams`.
+If you want to download multiple potential targets before deciding on
+one, we recommend doing it with a command like:
+
+    git clone https://gitlab.cs.umd.edu/cmsc414-marsh/teams/Gizmonic/atm Gizmonic
+
+This will clone the target team's repository into a directory named
+`Gizmonic`, rather than `atm`.
+
+The next few steps must be done carefully. For exposition, we assume that
+the team we are attacking is Gizmonic, cloned as above, and the attacker
+is the student tservo.
+
+ 1. `cd Gizmonic` to work in the repository.
+ 2. Open the file `.git/config` in your favorite editor.
+ 3. Change the line
+
+                url = https://gitlab.cs.umd.edu/cmsc414-marsh/teams/Gizmonic/atm.git
+
+    to
+    
+                url = git@gitlab.cs.umd.edu:cmsc414-marsh/students/tservo/break-it.git
+
+    Note that we are switching from an HTTPS URL to an SSH URL, so
+    that we can push changes, and that we are now using tservo's
+    existing `break-it` repository. Make sure you change the URL to
+    use your repository, not tservo's. Save the file and quit the
+    editor.
+ 4. Run the command:
+
+        git push --force origin master
+
+    This will replace the version of your `break-it` repository on gitlab
+    with the local version. **You should almost never use the `--force`
+    flag when pushing, because it will destroy whatever was in the remote
+    repository!**
+ 5. Visit your newly-pushed `break-it` repository on https://gitlab.cs.umd.edu
+    to verify that the push was successful.
+
+## Rules of Engagement
+
+In your attack, you may arbitrarily modify the router code and the
+`*.card` files. A *successful attack* will be any attack that results
+in a net outflow of money to the attacker. By way of illustration,
+examples of successful attacks would be (but are not limited to):
+
+ * Withdrawing any money from a user's account without access to their
+   card file and/or PIN.
+ * Withdrawing more money from a user's account than the balance permits.
+ * Remotely depositing money into a user's account (*ie*, without accessing
+   the bank's command line interface).
+ * Learning a user's balance without having access to their card file
+   and/or PIN.
 
 ## Deliverables
 
