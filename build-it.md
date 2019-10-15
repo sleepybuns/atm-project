@@ -92,7 +92,7 @@ a *design document* in which you:
     they were unimportant, as well as threats that were important
     but you were unable to address.
 
-**This must be submitted in a sane format: plain text (including markdown),
+**This must be submitted in a same format: plain text (including markdown),
 ps, or pdf.**
 
 ## Grading
