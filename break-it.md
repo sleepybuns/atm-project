@@ -10,7 +10,8 @@ https://gitlab.cs.umd.edu/search?utf8=%E2%9C%93&search=atm, which
 should return a list of search results for repositories matching
 "atm". Make sure you select one that is under `cmsc414-marsh/teams`.
 If you want to download multiple potential targets before deciding on
-one, we recommend doing it with a command like:
+one, we recommend doing it with a command like (for a hypothetical team
+named "Gizmonic"):
 
     git clone https://gitlab.cs.umd.edu/cmsc414-marsh/teams/Gizmonic/atm Gizmonic
 
@@ -61,6 +62,9 @@ examples of successful attacks would be (but are not limited to):
    the bank's command line interface).
  * Learning a user's balance without having access to their card file
    and/or PIN.
+
+Note that while you may not modify the bank or atm, you are welcome to
+disable ASLR on your VM. Please indicate if your attack relies on this.
 
 ## Deliverables
 
