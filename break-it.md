@@ -64,7 +64,7 @@ examples of successful attacks would be (but are not limited to):
    and/or PIN.
 
 Note that while you may not modify the bank or atm, you are welcome to
-disable ASLR on your VM. Please indicate if your attack relies on this.
+disable ASLR on your machine. Please indicate if your attack relies on this.
 
 ## Deliverables
 

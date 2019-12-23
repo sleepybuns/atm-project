@@ -51,6 +51,10 @@ for clarification well in advance.*
     involve the ATM, bank, and init programs, with no (or absolutely
     minimal) modifications to the router.
 
+ 6. As with previous projects, the reference platform is the `baseline`
+    docker image. At this point, you should be able to create your own
+    scripts to build and run in a container using this image.
+
 Part 1, the team phase of the project, is described in
 [build-it.md](build-it.md).
 
