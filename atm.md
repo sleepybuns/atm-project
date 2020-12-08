@@ -68,6 +68,7 @@ The ATM should support the following commands:
 
               Unable to access <user-name>'s card
 
+          Here, `<user-name>` should be replaced with the *actual* name provided.
         * Otherwise (if there is no error accessing the card file), then
           the program should prompt the user for their PIN by printing
 
@@ -92,6 +93,7 @@ The ATM should support the following commands:
               ATM (<user-name>):  
 
           Note the spacing at the end of the prompt.
+          Here, `<user-name>` should be replaced with the *actual* name provided.
  * `withdraw <amt>`
     * Inputs
        * `<amt>`: a non-negative integer `[0-9]+` at most what can be
@@ -187,3 +189,4 @@ user begins or ends a session:
     No user logged in
     
     ATM: 
+
