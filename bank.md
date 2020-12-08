@@ -45,6 +45,7 @@ The bank should support the following commands:
          
              Error:  user <user-name> already exists
          
+         Here, `<user-name>` should be replaced with the *actual* name provided.
          There should be no side effects in this case.
        * Otherwise, it should create a user named `<user-name>` in
          the bank with an initial balance of `$<balance>`. It should
@@ -58,11 +59,13 @@ The bank should support the following commands:
                 Error creating card file for user <user-name>
             
             and roll back any changes the bank may have made.
+            Here, `<user-name>` should be replaced with the *actual* name provided.
           * Otherwise, if it successfully creates the file, then it should
             print
 
                 Created user <user-name>
 
+            Here, `<user-name>` should be replaced with the *actual* name provided.
        * In any of the above cases, it should return the user back to
          the bank prompt for more commands.
        * **Note:** Your protocol cannot modify card files after creating them.
@@ -98,6 +101,7 @@ The bank should support the following commands:
 
              $<amt> added to <user-name>'s account
 
+         Here, `<user-name>` should be replaced with the *actual* name provided.
  * `balance <user-name>`
     * Inputs
        * `<user-name>`: a name that can consist only of upper and lower
