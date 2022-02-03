@@ -65,6 +65,22 @@ nor can the memory on the ATM be examined. In particular, you do
     and when installing the ATM (though, again, the specific
     contents of these files are purely up to you).
 
+OpenSSL (https://www.openssl.org/) is one of the most popular
+packages (at least in C) for performing cryptographic operations,
+and it has implementations of all the major cryptosystems.  It has
+an API that allows it to be used in programs requiring cryptography,
+as well as a number of command-line utilities. OpenSSL documentation
+can be found at https://www.openssl.org/docs/ and https://wiki.openssl.org,
+with
+https://wiki.openssl.org/index.php/EVP_Symmetric_Encryption_and_Decryption
+and https://wiki.openssl.org/index.php/EVP_Message_Digests being
+the most useful pages for basic usage. Please note that these are
+valuable pages for seeing the correct functions to call, and the
+arguments they accept, but they are only appropriate for small
+messages. On the baseline, you will need to add
+`-I/usr/include/openssl -lcrypto` to your `gcc` commands to use OpenSSL.
+
+
 ## Deliverables
 
 Submissions must be to your **team** repository (even if you are
