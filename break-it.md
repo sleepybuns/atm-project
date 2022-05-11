@@ -51,6 +51,13 @@ Here are the things that are out of scope for your attack:
    analysis, but not during your actual attack. That is, you may not rely
    on knowing the specific memory addresses being used, unless you are able
    to learn these in an attack. 
+ * You may *only* use the bank to create valid users as targets. Attacks that
+   rely on errors in the bank command line are not valid.
+ * While modifying a card is allowed, it is *not* a valid attack to
+   demonstrate that a "damaged" card does not allow the user to authenticate.
+   This is correct behavior.
+ * Modifying messages in the router so that they are rejected by the
+   recipient is not a valid attack. This is correct behavior.
    
 ## Deliverables
 
