@@ -42,7 +42,6 @@ Here are the things that are out of scope for your attack:
 
  * You may not manually stop and restart any of the programs (`bank`, `atm`,
    or `router`).
- * You may not simply refuse to deliver messages through your router.
  * While you may examine the `init` program and what it generates in the bank
    and atm configuration files, you may not *examine* these *during* the attack.
    That is, after analyzing the system, you should do a "clean" run of `init`
@@ -58,6 +57,9 @@ Here are the things that are out of scope for your attack:
    This is correct behavior.
  * Modifying messages in the router so that they are rejected by the
    recipient is not a valid attack. This is correct behavior.
+ * Attacks that are impossible for the system to defend against by design
+   are not valid attacks. A flooding DoS attack is one example of this.
+   Refusing to forward messages through your router is another.
    
 ## Deliverables
 
