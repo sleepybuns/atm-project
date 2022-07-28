@@ -113,25 +113,24 @@ ps, or pdf.**
 
 ## Grading
 
-Part 1 will be worth 100 points and will be graded as follows: 25% of
-the grade will be based on automated tests that your submission achieves
-the basic functionality (e.g., proper account balances, not permitting
-withdrawals with insufficient funds, etc.). The remaining is based on
-your protocol's ability to protect against attacks.
+Part 1 is split into two pieces: 25 automated functionality tests, and
+the design document, scored as a challege problem (E/M/R/N). For the
+document to receive full points, it must be a complete description of
+your system and contain 5 distinct vulnerabilities with implemented
+countermeasures.
 
-Each distinct attack and countermeasure you present in your design
-document is an additional 15%. ("Distinct" here is pretty loose: it
-doesn't mean that, e.g., all confidentiality attacks are equivalent,
-but rather that the attacks are morally different. For example, if
-there is a vulnerability such that modifying a part of a packet to
-some number *x* causes the user to withdraw *$x* instead of their
-intended amount, then exploiting that vulnerability with
-*x*=$200 and *x*=$300 are fundamentally the same attack.) You *must*
-list the attacks and countermeasures one-by-one in your document to
-make it clear for grading. You may include additional attacks beyond
-the 5 required for full credit. While this will not increase your
-score, the more attacks you prevent, the greater your chances of
-surviving the break-it phase of the project.
+"Distinct" here is pretty loose: it doesn't mean that, e.g., all
+confidentiality attacks are equivalent, but rather that the attacks
+are morally different. For example, if there is a vulnerability such
+that modifying a part of a packet to some number *x* causes the user
+to withdraw *$x* instead of their intended amount, then exploiting
+that vulnerability with *x*=$200 and *x*=$300 are fundamentally the
+same attack.  You *must* list the attacks and countermeasures
+one-by-one in your document to make it clear for grading. You may
+include additional attacks beyond the 5 required for full
+credit. While this will not increase your score, the more attacks you
+prevent, the greater your chances of surviving the break-it phase of
+the project.
 
 If your design document does not correspond to your implementation,
 you will be given no credit--if you are not able to implement some
