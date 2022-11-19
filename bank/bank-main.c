@@ -11,13 +11,14 @@
 #include "bank.h"
 #include "ports.h"
 
+
 static const char prompt[] = "BANK: ";
 
 int main(int argc, char**argv)
 {
    int n;
-   char sendline[1000];
-   char recvline[1000];
+   char sendline[DATASIZE + 1] = "";
+   char recvline[DATASIZE + 1] = "";
 
    Bank *bank = bank_create();
 
@@ -34,14 +35,14 @@ int main(int argc, char**argv)
 
        if(FD_ISSET(0, &fds))
        {
-           fgets(sendline, 10000,stdin);
+           fgets(sendline, DATASIZE + 1, stdin);
            bank_process_local_command(bank, sendline, strlen(sendline));
            printf("%s", prompt);
            fflush(stdout);
        }
        else if(FD_ISSET(bank->sockfd, &fds))
        {
-           n = bank_recv(bank, recvline, 10000);
+           n = bank_recv(bank, recvline, DATASIZE);
            bank_process_remote_command(bank, recvline, n);
        }
    }

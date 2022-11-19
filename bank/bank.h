@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <../util/hash_table.h>
+#define DATASIZE 1000
 
 typedef struct _Bank
 {
@@ -29,6 +31,7 @@ typedef struct _Bank
 
     // Protocol state
     // TODO add more, as needed
+    HashTable accounts; 
 } Bank;
 
 Bank* bank_create();
