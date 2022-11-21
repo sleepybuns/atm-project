@@ -4,15 +4,22 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-Bank* bank_create()
-{
+char key[KEY_LEN];
+Userfile *logged_user = NULL;
+char active_card[CARD_LEN + 1] = "";
+char active_user[MAX_USERNAME_LEN + 1] = "";
+int session_state = 0;
+
+
+Bank* bank_create(char *data) {
+    
     Bank *bank = (Bank*) malloc(sizeof(Bank));
-    if(bank == NULL)
-    {
+    if(bank == NULL) {
         perror("Could not allocate Bank");
         exit(1);
     }
-
+    //set sysmetric key
+    memcpy(key, data, KEY_LEN);
     // Set up the network state
     bank->sockfd=socket(AF_INET,SOCK_DGRAM,0);
 
@@ -29,55 +36,198 @@ Bank* bank_create()
 
     // Set up the protocol state
     // TODO set up more, as needed
+    bank->accounts = hash_table_create(10);
 
     return bank;
 }
 
-void bank_free(Bank *bank)
-{
-    if(bank != NULL)
-    {
+void bank_free(Bank *bank) {
+    if(bank != NULL) {
         close(bank->sockfd);
+        hash_table_free(bank->accounts);
+
         free(bank);
     }
 }
 
-ssize_t bank_send(Bank *bank, char *data, size_t data_len)
-{
+ssize_t bank_send(Bank *bank, char *data, size_t data_len) {
     // Returns the number of bytes sent; negative on error
     return sendto(bank->sockfd, data, data_len, 0,
                   (struct sockaddr*) &bank->rtr_addr, sizeof(bank->rtr_addr));
 }
 
-ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len)
-{
+ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len) {
     // Returns the number of bytes received; negative on error
     return recvfrom(bank->sockfd, data, max_data_len, 0, NULL, NULL);
 }
 
-void bank_process_local_command(Bank *bank, char *command, size_t len)
-{
+void bank_process_local_command(Bank *bank, char *command, size_t len) {
     // TODO: Implement the bank's local commands
-    char cmd[DATASIZE + 1] = "";
+    char subcmd[DATASIZE + 1] = "";
+    int index = 0;
 
+    sscanf(command, " %s %n", subcmd, &index);
+    command += index; //command points to next non-whitespace character
+
+    if (!strcmp(subcmd, "create-user")) {
+        char username[DATASIZE + 1] = "", pin[DATASIZE + 1] = "";
+        char balance[DATASIZE + 1] = "", card_name[DATASIZE + 1] = "";
+        char *bank_user, card_num[CARD_LEN + 1] = "";
+        int init_bal;
+        size_t user_len;
+        Userfile *user_file;
+        FILE *output;
+
+        index = 0;
+        sscanf(command, "%s %s %s %n", username, pin, balance, &index);
+
+        // check validitiy of arguments
+        // index == 0 means there aren't 3 arguments
+        // *(command + index) is truthy if there are more input after
+        // check the validity of the characters in all args
+        // check balance can fit into int. side effect: value stored in init_bal
+        if (index == 0 || *(command + index) || 
+            (user_len = strlen(username)) > MAX_USERNAME_LEN || strlen(pin) != PIN_LEN ||
+            check_string(username, user_len, isalpha) == 0 || 
+            check_string(pin, PIN_LEN, isdigit) == 0 ||
+            check_string(balance, strlen(balance), isdigit) == 0 ||
+            valid_money(balance, &init_bal) == 0) {
+            
+            printf("Usage:  create-user <user-name> <pin> <balance> \n");
+            return;
+        }
+        if (hash_table_find(bank->accounts, username)) {
+            printf("Error:  user %s already exists\n", username);
+            return;
+        }
+        // create a <username>.card file
+        strcpy(card_name, username);
+        strcat(card_name, ".card");
+        if ((output = fopen(card_name, "w")) == NULL) {
+            printf("Error creating card file for user %s\n", username);
+            return;
+        }
+        fputs(username, output);
+        fputc('\n', output);
+        //create card number 
+        //sprintf(w_buffer, "%u", hash(function_encrypte(username), cyphertext_len)); 
+        fputs(card_num, output);
+        fclose(output);
+
+        //add the account in the hashtable
+        user_file = (Userfile *) malloc(sizeof(Userfile));
+        strncpy(user_file->pin, pin, PIN_LEN);
+        strncpy(user_file->card_num, card_num, CARD_LEN);
+        user_file->balance = init_bal;
+        bank_user = malloc((sizeof(char) * user_len) + 1);
+        strncpy(bank_user, username, user_len);
+        bank_user[user_len] = '\0';
+        hash_table_add(bank->accounts, bank_user, user_file);
+        
+        printf("Created user %s\n", username);
+        return;
+
+    } else if (!strcmp(subcmd, "deposit")) {
+        char username[DATASIZE + 1] = "", amt[DATASIZE + 1] = "";
+        int deposit, user_bal;
+        size_t user_len;
+        Userfile *target;
+
+        index = 0;
+        sscanf(command, "%s %s %n", username, amt, &index);
+        if (index == 0 || *(command + index) || 
+            (user_len = strlen(username)) > MAX_USERNAME_LEN || 
+            check_string(username, user_len, isalpha) == 0 || 
+            check_string(amt, strlen(amt), isdigit) == 0 ||
+            valid_money(amt, &deposit) == 0) {
+            
+            printf("Usage:  deposit <user-name> <amt> \n");
+            return;
+        }
+        if ((target = (Userfile*)hash_table_find(bank->accounts, username)) == NULL) {
+            printf("No such user\n");
+            return;
+        }
+        
+        user_bal = target->balance;
+        if (INT_MAX - user_bal < deposit) {
+            printf("Too rich for this program\n");
+            return;
+        }
+        target->balance = user_bal + deposit;
+        printf("$%d added to %s's account\n", deposit, username);
+
+    } else if (!strcmp(subcmd, "balance")) {
+        char username[DATASIZE + 1] = "";
+        size_t user_len;
+        Userfile *target;
+
+        index = 0;
+        sscanf(command, "%s %n", username, &index);
+        if (index == 0 || *(command + index) || 
+            (user_len = strlen(username)) > MAX_USERNAME_LEN || 
+            check_string(username, user_len, isalpha) == 0) {
+            printf("Usage:  balance <user-name>\n");
+            return;
+        }
+        if ((target = (Userfile*)hash_table_find(bank->accounts, username)) == NULL) {
+            printf("No such user\n");
+            return;
+        }
+        printf("$%d\n", target->balance);
+
+    } else {
+        printf("Invalid command\n");
+    }
 }
 
-void bank_process_remote_command(Bank *bank, char *command, size_t len)
-{
-    // TODO: Implement the bank side of the ATM-bank protocol
+void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t len) {
+    unsigned char iv[IV_LEN];
+    unsigned char ciphertext[DATASIZE + 1] = "";
+    char plaintext[DATASIZE + 1] = "";
+    char session_username[MAX_USERNAME_LEN + 1] = "";
+    char session_card_num[CARD_LEN + 1] = "";
+    int index;
 
-	/*
-	 * The following is a toy example that simply receives a
-	 * string from the ATM, prepends "Bank got: " and echoes 
-	 * it back to the ATM before printing it to stdout.
-	 */
+    memcpy(iv, recv_data, IV_LEN); //store session IV;
+    recv_data += IV_LEN;
+    funct_decrypt(recv_data, len - IV_LEN, plaintext, key, iv);
+    sscanf(plaintext, "%s %s %n", session_card_num, session_username, &index);
+    if (index == 0 || *(plaintext + index)) {
+            // send error HERE
+            //
+        close_session();
+        return;
+    }
+	if (session_state == 0) {
+        
 
-	/*
-    char sendline[1000];
-    command[len]=0;
-    sprintf(sendline, "Bank got: %s", command);
-    bank_send(bank, sendline, strlen(sendline));
-    printf("Received the following:\n");
-    fputs(command, stdout);
-	*/
+    } else {
+        int cipher_len;
+        
+
+        
+
+
+        cipher_len = funct_encrypt(plaintext, strlen(plaintext), ciphertext, key, iv);
+        bank_send(bank, ciphertext, cipher_len);
+    }
+}
+
+void close_session() {
+    logged_user = NULL;
+    memset(active_card, 0, CARD_LEN);
+    memset(active_user, 0, MAX_USERNAME_LEN);
+    session_state = 0;
+}
+
+void create_card_num(uint32_t hash, char *pin, char *card_num) {
+    char arr[11] = "";
+    int idx;
+
+    arr[9] = '0';
+    sprintf(arr, "%u", hash);
+    for (idx = 0; idx < PIN_LEN; idx++) {
+        
+    }
 }

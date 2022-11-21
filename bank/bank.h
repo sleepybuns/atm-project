@@ -19,8 +19,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <../util/hash_table.h>
+#include "../util/hash_table.h"
+#include "../util/misc_util.h"
 #define DATASIZE 1000
+#define MAX_USERNAME_LEN 250
+#define PIN_LEN 4
+#define KEY_LEN 32
+#define IV_LEN 16
+#define CARD_LEN 10
 
 typedef struct _Bank
 {
@@ -31,15 +37,21 @@ typedef struct _Bank
 
     // Protocol state
     // TODO add more, as needed
-    HashTable accounts; 
+    HashTable *accounts; 
 } Bank;
+
+typedef struct userfile {
+    int balance;
+    char pin[PIN_LEN];
+    char card_num[CARD_LEN];
+} Userfile;
 
 Bank* bank_create();
 void bank_free(Bank *bank);
 ssize_t bank_send(Bank *bank, char *data, size_t data_len);
 ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len);
 void bank_process_local_command(Bank *bank, char *command, size_t len);
-void bank_process_remote_command(Bank *bank, char *command, size_t len);
+void bank_process_remote_command(Bank *bank, unsigned char *command, size_t len);
 
 #endif
 
