@@ -1,6 +1,6 @@
 #ifndef __MISC_UTIL_H__
 #define __MISC_UTIL_H__
-
+#include <stdlib.h>
 #include <limits.h>
 #include <inttypes.h>
 #include <ctype.h>
@@ -9,8 +9,13 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
-
-
 int check_string(char *src, int size, int (*is_something)(int c));
 int valid_money(char *amount, int *result);
+int encrypt_func(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+                    unsigned char *iv, unsigned char *ciphertext, const EVP_CIPHER *enc_type_mode);
+int decrypt_func(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+                    unsigned char *iv, unsigned char *plaintext, const EVP_CIPHER *enc_type_mode);
+int handleErrors(void);
+int digest_message(const unsigned char *message, size_t message_len, 
+                    unsigned char *digest, const EVP_MD *md_type);
 #endif
