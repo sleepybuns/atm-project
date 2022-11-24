@@ -3,12 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-char key[KEY_LEN];
-Userfile *logged_user = NULL;
-char active_card[CARD_LEN + 1] = "";
-char active_user[MAX_USERNAME_LEN + 1] = "";
-int session_state = 0;
+#include <stdio.h>
 
 
 Bank* bank_create(char *data) {
@@ -18,8 +13,7 @@ Bank* bank_create(char *data) {
         perror("Could not allocate Bank");
         exit(1);
     }
-    //set sysmetric key
-    memcpy(key, data, KEY_LEN);
+    
     // Set up the network state
     bank->sockfd=socket(AF_INET,SOCK_DGRAM,0);
 
@@ -33,10 +27,15 @@ Bank* bank_create(char *data) {
     bank->bank_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
     bank->bank_addr.sin_port = htons(BANK_PORT);
     bind(bank->sockfd,(struct sockaddr *)&bank->bank_addr,sizeof(bank->bank_addr));
-
+   
+    //set sysmetric key
+    memcpy(bank->key, data, KEY_LEN);
     // Set up the protocol state
-    // TODO set up more, as needed
-    bank->accounts = hash_table_create(10);
+    bank->accounts = hash_table_create(100);
+    bank->logged_user = NULL;
+    memset(bank->active_card, 0, CARD_LEN + 1);
+    memset(bank->active_user, 0, MAX_USERNAME_LEN + 1);
+    bank->session_state = 0;
 
     return bank;
 }
@@ -62,7 +61,6 @@ ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len) {
 }
 
 void bank_process_local_command(Bank *bank, char *command, size_t len) {
-    // TODO: Implement the bank's local commands
     char subcmd[DATASIZE + 1] = "";
     int index = 0;
 
@@ -119,13 +117,10 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
         strncpy(user_file->pin, pin, PIN_LEN);
         strncpy(user_file->card_num, card_num, CARD_LEN);
         user_file->balance = init_bal;
-        bank_user = malloc((sizeof(char) * user_len) + 1);
+        bank_user = calloc(user_len + 1, sizeof(char));
         strncpy(bank_user, username, user_len);
-        bank_user[user_len] = '\0';
         hash_table_add(bank->accounts, bank_user, user_file);
-        
         printf("Created user %s\n", username);
-        return;
 
     } else if (!strcmp(subcmd, "deposit")) {
         char username[DATASIZE + 1] = "", amt[DATASIZE + 1] = "";
@@ -135,6 +130,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
 
         index = 0;
         sscanf(command, "%s %s %n", username, amt, &index);
+        //sanitize input
         if (index == 0 || *(command + index) || 
             (user_len = strlen(username)) > MAX_USERNAME_LEN || 
             check_string(username, user_len, isalpha) == 0 || 
@@ -164,6 +160,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
 
         index = 0;
         sscanf(command, "%s %n", username, &index);
+        //sanitize input
         if (index == 0 || *(command + index) || 
             (user_len = strlen(username)) > MAX_USERNAME_LEN || 
             check_string(username, user_len, isalpha) == 0) {
@@ -191,16 +188,16 @@ void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t le
 
     memcpy(iv, recv_data, IV_LEN); //store session IV;
     recv_data += IV_LEN;
-    funct_decrypt(recv_data, len - IV_LEN, plaintext, key, iv);
+    funct_decrypt(recv_data, len - IV_LEN, plaintext, bank->key, iv);
     sscanf(plaintext, "%s %s %n", session_card_num, session_username, &index);
     if (index == 0 || *(plaintext + index)) {
             // send error HERE
             //
-        close_session();
+        close_session(bank);
         return;
     }
-	if (session_state == 0) {
-        
+	if (bank->session_state == 0) {
+         
 
     } else {
         int cipher_len;
@@ -209,16 +206,16 @@ void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t le
         
 
 
-        cipher_len = funct_encrypt(plaintext, strlen(plaintext), ciphertext, key, iv);
+        cipher_len = funct_encrypt(plaintext, strlen(plaintext), ciphertext, bank->key, iv);
         bank_send(bank, ciphertext, cipher_len);
     }
 }
 
-void close_session() {
-    logged_user = NULL;
-    memset(active_card, 0, CARD_LEN);
-    memset(active_user, 0, MAX_USERNAME_LEN);
-    session_state = 0;
+void close_session(Bank *bank) {
+    bank->logged_user = NULL;
+    memset(bank->active_card, 0, CARD_LEN);
+    memset(bank->active_user, 0, MAX_USERNAME_LEN);
+    bank->session_state = 0;
 }
 
 void create_card_num(uint32_t hash, char *pin, char *card_num) {

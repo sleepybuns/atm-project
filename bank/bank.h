@@ -18,7 +18,6 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <stdio.h>
 #include "../util/hash_table.h"
 #include "../util/misc_util.h"
 #define DATASIZE 1000
@@ -26,6 +25,7 @@
 #define PIN_LEN 4
 #define KEY_LEN 32
 #define IV_LEN 16
+#define HASH_LEN 32
 #define CARD_LEN 10
 
 typedef struct _Bank
@@ -37,13 +37,19 @@ typedef struct _Bank
 
     // Protocol state
     // TODO add more, as needed
-    HashTable *accounts; 
+    HashTable *accounts;
+    char key[KEY_LEN];
+    Userfile *logged_user;
+    char active_card[CARD_LEN + 1];
+    char active_user[MAX_USERNAME_LEN + 1];
+    int session_state;
+
 } Bank;
 
 typedef struct userfile {
     int balance;
-    char pin[PIN_LEN];
-    char card_num[CARD_LEN];
+    char pin[PIN_LEN + 1];
+    char card_num[CARD_LEN + 1];
 } Userfile;
 
 Bank* bank_create();
