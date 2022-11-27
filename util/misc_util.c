@@ -38,11 +38,11 @@ int valid_money(char *amount, int *result) {
 //  This assumes iv and key have valid length for the encryption type.
 //  
 //  RETURNS ciphertext length on success, and 0 on failure.
-//  ciphertext_len = ceiling(plaintext_len / iv_len) * iv_len bytes
+//   
 //  Ensure the buffer passed is big enough given the plaintext length.
 */
-int encrypt_func (unsigned char *plaintext, int plaintext_len, unsigned char *key,
-            unsigned char *iv, unsigned char *ciphertext, const EVP_CIPHER* enc_type_mode) {
+int encrypt_aes256_cbc (unsigned char *plaintext, int plaintext_len, unsigned char *key,
+            unsigned char *iv, unsigned char *ciphertext) {
     EVP_CIPHER_CTX *ctx;
     int len, ciphertext_len;
     
@@ -52,7 +52,7 @@ int encrypt_func (unsigned char *plaintext, int plaintext_len, unsigned char *ke
     }
 
     /* Initialise the encryption operation. */
-    if(1 != EVP_EncryptInit_ex(ctx, enc_type_mode, NULL, key, iv)) {
+    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
        return handleErrors();
     }
     
@@ -82,8 +82,8 @@ int encrypt_func (unsigned char *plaintext, int plaintext_len, unsigned char *ke
 //  RETURNS plaintext length on success, and 0 on failure.
 //  plaintext is not null terimnated. Ensure the buffer passed is big enough.
 */
-int decrypt_func (unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
-            unsigned char *iv, unsigned char *plaintext, const EVP_CIPHER* enc_type_mode) {
+int decrypt_aes256_cbc (unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+            unsigned char *iv, unsigned char *plaintext) {
     EVP_CIPHER_CTX *ctx;
     int len, plaintext_len;
 
@@ -92,7 +92,7 @@ int decrypt_func (unsigned char *ciphertext, int ciphertext_len, unsigned char *
         return handleErrors();
     }
     /* Initialise the decryption operation. */
-    if(1 != EVP_DecryptInit_ex(ctx, enc_type_mode, NULL, key, iv)) {
+    if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv)) {
         return handleErrors();
     }
     // Provide the message to be decrypted, and obtain the plaintext output.

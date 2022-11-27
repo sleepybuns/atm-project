@@ -11,10 +11,10 @@
 
 int check_string(char *src, int size, int (*is_something)(int c));
 int valid_money(char *amount, int *result);
-int encrypt_func(unsigned char *plaintext, int plaintext_len, unsigned char *key,
-                    unsigned char *iv, unsigned char *ciphertext, const EVP_CIPHER *enc_type_mode);
-int decrypt_func(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
-                    unsigned char *iv, unsigned char *plaintext, const EVP_CIPHER *enc_type_mode);
+int encrypt_aes256_cbc(unsigned char *plaintext, int plaintext_len, unsigned char *key,
+                    unsigned char *iv, unsigned char *ciphertext);
+int decrypt_aes256_cbc(unsigned char *ciphertext, int ciphertext_len, unsigned char *key,
+                    unsigned char *iv, unsigned char *plaintext);
 int handleErrors(void);
 int digest_message(const unsigned char *message, size_t message_len, 
                     unsigned char *digest, const EVP_MD *md_type);
