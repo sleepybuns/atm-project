@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <openssl/rand.h>
 
-ATM* atm_create()
+ATM* atm_create(char *data)
 {
     ATM *atm = (ATM*) malloc(sizeof(ATM));
     if(atm == NULL)
@@ -30,6 +31,13 @@ ATM* atm_create()
 
     // Set up the protocol state
     // TODO set up more, as needed
+
+    // No session initially
+    memset(atm->curr_user, 0, MAX_USERNAME_LEN + 1);
+    atm->session_state = 0;
+
+    // set symmetric key 
+    memcpy(atm->key, data, KEY_LEN);
 
     return atm;
 }
@@ -60,10 +68,17 @@ void atm_process_command(ATM *atm, char *command)
 {
     // TODO: Implement the ATM's side of the ATM-bank protocol
 
-    char recvline[10000], action[20], arg[256], extra[20], pin[20];
-    char user[251];
-    int n, values = 0, amount;
+    char recvline[DATASIZE + 1] = "", action[DATASIZE + 1] = "", 
+    arg[DATASIZE + 1] = "", extra[DATASIZE + 1] = "", pin[DATASIZE + 1] = "";
+    char user[MAX_USERNAME_LEN + 1] = "";
+    unsigned char iv[IV_LEN];
+    int n, values = 0, invalid = 0, i, amount;
 
+    // Generate IV, returns 1 on success
+    if((RAND_bytes(iv, sizeof(iv))) == 0) {
+        fputs("Failed to generate IV\n", stderr);
+    }
+    
     /*
 	 * The following is a toy example that simply sends the
 	 * user's command to the bank, receives a message from the
@@ -85,18 +100,18 @@ void atm_process_command(ATM *atm, char *command)
     if(strcmp(action, "begin-session") == 0) {
         // DEBUG: printf("BEGIN SESSION\n");
 
-        if(strlen(curr_user) == 0) { // checks for active session
+        if(strlen(atm->curr_user) == 0) { // checks for active session
 
             int invalid = 0, i; 
 
             // check for any non-alphabetic characters
-            for(i = 0; i < strlen(arg);  i++) {
+            for(i = 0; i < strlen(arg); i++) {
                 if(!isalpha(arg[i])) {
                     invalid = 1; 
                 }
             } 
             // check for invalid command input
-            if(values != 2 || strlen(arg) > 250 || invalid) {
+            if(values != 2 || strlen(arg) > MAX_USERNAME_LEN || invalid) {
                 printf("Usage: begin-session <user-name>\n");
             } else {
 
@@ -113,16 +128,16 @@ void atm_process_command(ATM *atm, char *command)
                 if(fopen(arg, "r") != NULL) { // looks in curr dir (bin)
 
                     printf("PIN? ");
-                    // take in user input
+                    // take in user input, including newline
                     fgets(pin, 20, stdin);
                     
                     // DEBUG: printf("Checking input pin: %s, length: %d\n", pin, (int)strlen(pin));
-                    if(strlen(pin) > 5 || pin[4] != '\n') { // also check with bank records to confirm pin
+                    if(strlen(pin) > (PIN_LEN + 1) || pin[PIN_LEN] != '\n') { // also check with bank records to confirm pin
                         printf("Not authorized\n");
                     } else {
                         printf("Authorized\n");
-                        strncpy(curr_user, user, strlen(user));
-                        curr_user[strlen(user)] = '\0';
+                        strncpy(atm->curr_user, user, strlen(user));
+                        atm->curr_user[strlen(user)] = '\0';
                     }
         
                 } else {
@@ -136,15 +151,20 @@ void atm_process_command(ATM *atm, char *command)
 
     } else if (strcmp(action, "withdraw") == 0) {
         // DEBUG: printf("WITHDRAW\n");
-        
-        if(strlen(curr_user) > 0) {
-            // verify amount
-            amount = (int) strtol(arg, (char **)NULL, 10); // used instead of atoi for error handling purposes
 
-            // DEBUG: printf("testing if strtol worked, val: %d\n", amount);
+        if(strlen(atm->curr_user) > 0) {
+            // verify amount
+            int check_amount = valid_money(arg, &amount);
+            
+            // check for any non-digit characters
+            for(i = 0; i < strlen(arg); i++) {
+                if(!isdigit(arg[i])) {
+                    invalid = 1; 
+                }
+            } 
 
             // check for invalid command input
-            if(values != 2 || amount <= 0) { // assuming that 'withdraw 0' is invalid ??
+            if(values != 2 || check_amount == 0 || amount < 0 || invalid) { 
                 printf("Usage: withdraw <amt>\n");
             } else {
 
@@ -164,7 +184,7 @@ void atm_process_command(ATM *atm, char *command)
     } else if (strcmp(action, "balance") == 0) { 
         // DEBUG: printf("BALANCE\n");
 
-        if(strlen(curr_user) > 0) {
+        if(strlen(atm->curr_user) > 0) {
             if(values == 1) {
 
                 // TODO: Implement interaction with bank to get and print balance
@@ -186,8 +206,8 @@ void atm_process_command(ATM *atm, char *command)
     } else if (values == 1 && strcmp(action, "end-session") == 0) {
         // DEBUG: printf("END SESSION\n");
         
-        if(strlen(curr_user) > 0) {
-            curr_user[0] = '\0';
+        if(strlen(atm->curr_user) > 0) {
+            memset(atm->curr_user, 0, MAX_USERNAME_LEN + 1);
             printf("User logged out\n");
         } else {
             printf("No user logged in\n");

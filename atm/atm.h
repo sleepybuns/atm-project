@@ -15,8 +15,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include "../util/misc_util.h"
+#define DATASIZE 1000
+#define MAX_USERNAME_LEN 250
+#define KEY_LEN 32
+#define IV_LEN 16
+#define PIN_LEN 4
 
-char curr_user[20]; // Indicator of an active session
 
 typedef struct _ATM
 {
@@ -27,6 +32,10 @@ typedef struct _ATM
 
     // Protocol state
     // TODO add more, as needed
+    char curr_user[MAX_USERNAME_LEN + 1];
+    int session_state;
+    char key[KEY_LEN];
+
 } ATM;
 
 ATM* atm_create();
