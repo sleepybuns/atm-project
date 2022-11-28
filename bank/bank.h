@@ -18,33 +18,23 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <time.h>
+#include <sys/time.h>
 #include "../util/hash_table.h"
-#include "../util/misc_util.h"
+
+
 #define DATASIZE 1000
 #define MAX_USERNAME_LEN 250
 #define PIN_LEN 4
 #define KEY_LEN 32
 #define IV_LEN 16
 #define HASH_LEN 32
-#define CARD_LEN 10
+#define CARD_LEN 32
+//protocol states
+#define NO_SESH 0
+#define AWAIT_AUTH 99
+#define OPEN_SESH 11
 
-typedef struct _Bank
-{
-    // Networking state
-    int sockfd;
-    struct sockaddr_in rtr_addr;
-    struct sockaddr_in bank_addr;
-
-    // Protocol state
-    // TODO add more, as needed
-    HashTable *accounts;
-    char key[KEY_LEN];
-    Userfile *logged_user;
-    char active_card[CARD_LEN + 1];
-    char active_user[MAX_USERNAME_LEN + 1];
-    int session_state;
-
-} Bank;
 
 typedef struct userfile {
     int balance;
@@ -52,12 +42,32 @@ typedef struct userfile {
     char card_num[CARD_LEN + 1];
 } Userfile;
 
+typedef struct _Bank {
+    // Networking state
+    int sockfd;
+    struct sockaddr_in rtr_addr;
+    struct sockaddr_in bank_addr;
+    unsigned char key[KEY_LEN];
+    // Protocol state
+    // TODO add more, as needed
+    HashTable *accounts;
+    HashTable *acc_nums;
+    
+    Userfile *logged_user;
+    char active_card[CARD_LEN + 1];
+    int session_state;
+    time_t last_mssg_time;
+    clock_t last_cpu_cycle;
+
+} Bank;
+
+
 Bank* bank_create();
 void bank_free(Bank *bank);
-ssize_t bank_send(Bank *bank, char *data, size_t data_len);
-ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len);
+ssize_t bank_send(Bank *bank, unsigned char *data, size_t data_len);
+ssize_t bank_recv(Bank *bank, unsigned char *data, size_t max_data_len);
 void bank_process_local_command(Bank *bank, char *command, size_t len);
 void bank_process_remote_command(Bank *bank, unsigned char *command, size_t len);
-
+void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len);
 #endif
 

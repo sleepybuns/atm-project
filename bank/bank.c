@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include "../util/misc_util.h"
+#include <openssl/rand.h>
 
 
 Bank* bank_create(char *data) {
@@ -28,14 +30,15 @@ Bank* bank_create(char *data) {
     bank->bank_addr.sin_port = htons(BANK_PORT);
     bind(bank->sockfd,(struct sockaddr *)&bank->bank_addr,sizeof(bank->bank_addr));
    
-    //set sysmetric key
+    //set symetric key
     memcpy(bank->key, data, KEY_LEN);
     // Set up the protocol state
     bank->accounts = hash_table_create(100);
+    bank->acc_nums = hash_table_create(100);
     bank->logged_user = NULL;
     memset(bank->active_card, 0, CARD_LEN + 1);
-    memset(bank->active_user, 0, MAX_USERNAME_LEN + 1);
     bank->session_state = 0;
+    bank->last_mssg_time = 0;
 
     return bank;
 }
@@ -44,18 +47,18 @@ void bank_free(Bank *bank) {
     if(bank != NULL) {
         close(bank->sockfd);
         hash_table_free(bank->accounts);
-
+        hash_table_free(bank->acc_nums);
         free(bank);
     }
 }
 
-ssize_t bank_send(Bank *bank, char *data, size_t data_len) {
+ssize_t bank_send(Bank *bank, unsigned char *data, size_t data_len) {
     // Returns the number of bytes sent; negative on error
     return sendto(bank->sockfd, data, data_len, 0,
                   (struct sockaddr*) &bank->rtr_addr, sizeof(bank->rtr_addr));
 }
 
-ssize_t bank_recv(Bank *bank, char *data, size_t max_data_len) {
+ssize_t bank_recv(Bank *bank, unsigned char *data, size_t max_data_len) {
     // Returns the number of bytes received; negative on error
     return recvfrom(bank->sockfd, data, max_data_len, 0, NULL, NULL);
 }
@@ -70,7 +73,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
     if (!strcmp(subcmd, "create-user")) {
         char username[DATASIZE + 1] = "", pin[DATASIZE + 1] = "";
         char balance[DATASIZE + 1] = "", card_name[DATASIZE + 1] = "";
-        char *bank_user, card_num[CARD_LEN + 1] = "";
+        char *bank_user, *card_num;
         int init_bal;
         size_t user_len;
         Userfile *user_file;
@@ -91,7 +94,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
             check_string(balance, strlen(balance), isdigit) == 0 ||
             valid_money(balance, &init_bal) == 0) {
             
-            printf("Usage:  create-user <user-name> <pin> <balance> \n");
+            printf("Usage:  create-user <user-name> <pin> <balance>\n");
             return;
         }
         if (hash_table_find(bank->accounts, username)) {
@@ -105,11 +108,11 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
             printf("Error creating card file for user %s\n", username);
             return;
         }
-        fputs(username, output);
-        fputc('\n', output);
-        //create card number 
-        //sprintf(w_buffer, "%u", hash(function_encrypte(username), cyphertext_len)); 
-        fputs(card_num, output);
+        // create card number
+        strncat(card_name, pin, PIN_LEN);
+        card_num = calloc(CARD_LEN + 1, sizeof(char)); 
+        gen_card_num(bank, card_num, (unsigned char*) card_name, strlen(card_name));
+        fputs(card_num, output); 
         fclose(output);
 
         //add the account in the hashtable
@@ -120,6 +123,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
         bank_user = calloc(user_len + 1, sizeof(char));
         strncpy(bank_user, username, user_len);
         hash_table_add(bank->accounts, bank_user, user_file);
+        hash_table_add(bank->acc_nums, card_num, bank_user);
         printf("Created user %s\n", username);
 
     } else if (!strcmp(subcmd, "deposit")) {
@@ -137,7 +141,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
             check_string(amt, strlen(amt), isdigit) == 0 ||
             valid_money(amt, &deposit) == 0) {
             
-            printf("Usage:  deposit <user-name> <amt> \n");
+            printf("Usage:  deposit <user-name> <amt>\n");
             return;
         }
         if ((target = (Userfile*)hash_table_find(bank->accounts, username)) == NULL) {
@@ -179,52 +183,113 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
 }
 
 void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t len) {
-    unsigned char iv[IV_LEN];
-    unsigned char ciphertext[DATASIZE + 1] = "";
-    char plaintext[DATASIZE + 1] = "";
-    char session_username[MAX_USERNAME_LEN + 1] = "";
-    char session_card_num[CARD_LEN + 1] = "";
-    int index;
+    unsigned char iv[IV_LEN], ciphertext[DATASIZE + 1] = "";
+    unsigned char plaintext[DATASIZE + 1] = "";
+    char curr_card_num[CARD_LEN + 1], *plain_ptr = (char*) plaintext;
+    char reply[DATASIZE + 1] = "";
+    long message_time = 0, cpu_cycle = 0;
+    int plaintext_len, cipher_len, reply_len;
 
-    memcpy(iv, recv_data, IV_LEN); //store session IV;
+    // extract IV
+    memcpy(iv, recv_data, IV_LEN); 
     recv_data += IV_LEN;
-    funct_decrypt(recv_data, len - IV_LEN, plaintext, bank->key, iv);
-    sscanf(plaintext, "%s %s %n", session_card_num, session_username, &index);
-    if (index == 0 || *(plaintext + index)) {
-            // send error HERE
-            //
-        close_session(bank);
+
+    // decrypte message
+    plaintext_len = decrypt_aes256_cbc(recv_data, len - IV_LEN, bank->key, iv, plaintext);
+    if (plaintext_len == 0) {
+        return;
+    } 
+    // extract time stamps
+    memcpy(&message_time, plain_ptr, sizeof(long));
+    memcpy(&cpu_cycle, plain_ptr + sizeof(long), sizeof(long));
+    plain_ptr += (sizeof(long) * 2);
+    plaintext_len -= (sizeof(long) * 2);
+    // check time stamps
+    if (message_time < bank->last_mssg_time) {
+        return;
+    } else if (message_time == bank->last_mssg_time && cpu_cycle <= bank->last_cpu_cycle) {
         return;
     }
-	if (bank->session_state == 0) {
-         
-
-    } else {
-        int cipher_len;
-        
-
-        
-
-
-        cipher_len = funct_encrypt(plaintext, strlen(plaintext), ciphertext, bank->key, iv);
-        bank_send(bank, ciphertext, cipher_len);
+    // check card number
+    strncpy(curr_card_num, plain_ptr, CARD_LEN);
+    if (!strcmp(curr_card_num, bank->active_card)) {
+        return;
     }
+    reply_len = process_msg_helper(bank, plain_ptr, plaintext_len, reply, DATASIZE + 1);
+
+    do {
+        if (RAND_priv_bytes(iv, IV_LEN) <= 0) {
+            continue;
+        }
+        cipher_len = encrypt_aes256_cbc(reply, reply_len, bank->key, iv, ciphertext);
+
+        if (cipher_len == 0) {
+            continue;
+        } else {
+            unsigned char message[cipher_len + IV_LEN];
+
+            memcpy(message, iv, IV_LEN);
+            memcpy(message + IV_LEN, ciphertext, cipher_len);
+            bank_send(bank, message, cipher_len + IV_LEN);
+            return;
+        }
+
+    } while (1);
+    
+}
+
+int process_mssg_helper(Bank *bank, char *command, int cmd_len, char *reply, int reply_buf_size) {
+    char subcmd[DATASIZE + 1] = "";
+
+    
+}
+
+void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len) {
+    unsigned char iv[IV_LEN], ciphertext[DATASIZE], hash[HASH_LEN];
+    char lil_buff[3] = "";
+    int cipher_len = 0, hash_len, idx;
+
+    do {
+        if (RAND_priv_bytes(iv, IV_LEN) <= 0) {
+            continue;
+        }
+        cipher_len = encrypt_aes256_cbc(plaintext, plaintext_len, bank->key, iv, ciphertext);
+        if (cipher_len == 0) {
+            continue;
+        }
+        hash_len = digest_message(ciphertext, cipher_len, hash, EVP_md5());
+        if (hash_len == 0) {
+            continue;
+        }
+        for (idx = 0; idx < hash_len; idx++) {
+            sprintf(lil_buff, "%02x", hash[idx]);
+            strncat(card_num, lil_buff, 2);
+        }
+        if (hash_table_find(bank->acc_nums, card_num)){
+            continue;
+        }
+        return;
+    } while (1);
+
+}
+
+int construct_payload (Bank *bank, char *payload, char *text, int text_len) {
+    time_t curr_time = time(&(bank->last_mssg_time));
+    clock_t curr_cpu_cycle = clock();
+
+    memcpy(payload, (void*) curr_time, sizeof(long));
+    memcpy(payload + sizeof(long), (void*) curr_cpu_cycle, sizeof(long));
+    payload += (sizeof(long) * 2);
+    memcpy(payload, bank->active_card, CARD_LEN);
+    payload += CARD_LEN;
+    memcpy(payload, text, text_len);
+    payload[text_len] = '\0';
+    return (sizeof(long) * 2) + CARD_LEN + text_len + 1;
 }
 
 void close_session(Bank *bank) {
     bank->logged_user = NULL;
-    memset(bank->active_card, 0, CARD_LEN);
-    memset(bank->active_user, 0, MAX_USERNAME_LEN);
+    memset(bank->active_card, 0, CARD_LEN + 1);
     bank->session_state = 0;
 }
 
-void create_card_num(uint32_t hash, char *pin, char *card_num) {
-    char arr[11] = "";
-    int idx;
-
-    arr[9] = '0';
-    sprintf(arr, "%u", hash);
-    for (idx = 0; idx < PIN_LEN; idx++) {
-        
-    }
-}
