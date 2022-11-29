@@ -1,4 +1,5 @@
 #include "misc_util.h"
+#include "bank.h"
 
 // check if every char in string is true by is_something function
 // return 0 if any char is false, 1 if all are true
@@ -144,4 +145,3 @@ int digest_message(const unsigned char *message, size_t message_len,
 	EVP_MD_CTX_free(mdctx);
     return digest_len;
 }
-

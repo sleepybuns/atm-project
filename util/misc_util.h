@@ -9,6 +9,7 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+
 int check_string(char *src, int size, int (*is_something)(int c));
 int valid_money(char *amount, int *result);
 int encrypt_aes256_cbc(unsigned char *plaintext, int plaintext_len, unsigned char *key,
