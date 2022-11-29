@@ -22,7 +22,6 @@
 #include <sys/time.h>
 #include "../util/hash_table.h"
 
-
 #define DATASIZE 1000
 #define MAX_USERNAME_LEN 250
 #define PIN_LEN 4
@@ -32,8 +31,9 @@
 #define CARD_LEN 32
 //protocol states
 #define NO_SESH 0
-#define AWAIT_AUTH 99
+#define AWAIT_PIN 99
 #define OPEN_SESH 11
+#define WITHDRAW 33
 
 
 typedef struct userfile {
@@ -56,8 +56,9 @@ typedef struct _Bank {
     Userfile *logged_user;
     char active_card[CARD_LEN + 1];
     int session_state;
-    time_t last_mssg_time;
-    clock_t last_cpu_cycle;
+    time_t last_msg_sec;
+    suseconds_t last_msg_usec; 
+
 
 } Bank;
 
@@ -69,5 +70,6 @@ ssize_t bank_recv(Bank *bank, unsigned char *data, size_t max_data_len);
 void bank_process_local_command(Bank *bank, char *command, size_t len);
 void bank_process_remote_command(Bank *bank, unsigned char *command, size_t len);
 void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len);
+int construct_response (Bank *bank, unsigned char *response, char *command, int cmd_len);
 #endif
 
