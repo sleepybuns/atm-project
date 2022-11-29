@@ -16,6 +16,8 @@
 #include <netinet/in.h>
 #include <stdio.h>
 
+char curr_user[20]; // Indicator of an active session
+
 typedef struct _ATM
 {
     // Networking state
