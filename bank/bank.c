@@ -96,18 +96,18 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
             check_string(balance, strlen(balance), isdigit) == 0 ||
             valid_money(balance, &init_bal) == 0) {
             
-            printf("Usage:  create-user <user-name> <pin> <balance>\n");
+            printf("Usage:  create-user <user-name> <pin> <balance>\n\n");
             return;
         }
         if (hash_table_find(bank->accounts, username)) {
-            printf("Error:  user %s already exists\n", username);
+            printf("Error:  user %s already exists\n\n", username);
             return;
         }
         // create a <username>.card file
         strcpy(card_name, username);
         strcat(card_name, ".card");
         if ((output = fopen(card_name, "w")) == NULL) {
-            printf("Error creating card file for user %s\n", username);
+            printf("Error creating card file for user %s\n\n", username);
             return;
         }
         // create card number
@@ -126,7 +126,7 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
         strncpy(bank_user, username, user_len);
         hash_table_add(bank->accounts, bank_user, user_file);
         hash_table_add(bank->acc_nums, card_num, bank_user);
-        printf("Created user %s\n", username);
+        printf("Created user %s\n\n", username);
 
     } else if (!strcmp(subcmd, "deposit")) {
         char username[DATASIZE + 1] = "", amt[DATASIZE + 1] = "";
@@ -143,21 +143,21 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
             check_string(amt, strlen(amt), isdigit) == 0 ||
             valid_money(amt, &deposit) == 0) {
             
-            printf("Usage:  deposit <user-name> <amt>\n");
+            printf("Usage:  deposit <user-name> <amt>\n\n");
             return;
         }
         if ((target = (Userfile*)hash_table_find(bank->accounts, username)) == NULL) {
-            printf("No such user\n");
+            printf("No such user\n\n");
             return;
         }
         
         user_bal = target->balance;
         if (INT_MAX - user_bal < deposit) {
-            printf("Too rich for this program\n");
+            printf("Too rich for this program\n\n");
             return;
         }
         target->balance = user_bal + deposit;
-        printf("$%d added to %s's account\n", deposit, username);
+        printf("$%d added to %s's account\n\n", deposit, username);
 
     } else if (!strcmp(subcmd, "balance")) {
         char username[DATASIZE + 1] = "";
@@ -170,17 +170,17 @@ void bank_process_local_command(Bank *bank, char *command, size_t len) {
         if (index == 0 || *(command + index) || 
             (user_len = strlen(username)) > MAX_USERNAME_LEN || 
             check_string(username, user_len, isalpha) == 0) {
-            printf("Usage:  balance <user-name>\n");
+            printf("Usage:  balance <user-name>\n\n");
             return;
         }
         if ((target = (Userfile*)hash_table_find(bank->accounts, username)) == NULL) {
-            printf("No such user\n");
+            printf("No such user\n\n");
             return;
         }
         printf("$%d\n", target->balance);
 
     } else {
-        printf("Invalid command\n");
+        printf("Invalid command\n\n");
     }
 }
 
