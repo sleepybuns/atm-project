@@ -20,6 +20,8 @@ void list_free(List *list)
         while(curr != NULL)
         {
             next = curr->next;
+            free(curr->key);
+            free(curr->val);
             free(curr);
             curr = next;
         }
@@ -83,7 +85,8 @@ void list_del(List *list, const char *key)
                 prev->next = curr->next;
 
             list->size--;
-
+            free(curr->key);
+            free(curr->val);
             free(curr);
             return;
         }

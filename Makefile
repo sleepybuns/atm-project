@@ -1,20 +1,5 @@
 CC = gcc
-
-ifeq ($(CC),clang)
-  STACK_FLAGS = -fno-stack-protector -Wl,-allow_stack_execute
-else
-  STACK_FLAGS = -fno-stack-protector -z execstack
-endif
-
-CFLAGS = ${STACK_FLAGS} -Wall -Iutil -Iatm -Ibank -Irouter -I.
-
-ifeq ($(CC),clang)
-  STACK_FLAGS = -fno-stack-protector -Wl,-allow_stack_execute
-else
-  STACK_FLAGS = -fno-stack-protector -z execstack
-endif
-
-CFLAGS = ${STACK_FLAGS} -Wall -Iutil -Iatm -Ibank -Irouter -I. -I/usr/include/openssl 
+CFLAGS = -fno-stack-protector -z execstack -Wall -Iutil -Iatm -Ibank -Irouter -I. -I/usr/include/openssl
 LDLIBS =  -lcrypto
 
 all: bin bin/atm bin/bank bin/router bin/init
@@ -28,7 +13,7 @@ bin/init :
 bin/atm : atm/atm-main.c atm/atm.c util/misc_util.c
 	${CC} ${CFLAGS} $^ ${LDLIBS} -o bin/atm
 
-bin/bank : bank/bank-main.c bank/bank.c
+bin/bank : bank/bank-main.c bank/bank.c util/hash_table.c util/list.c util/misc_util.c
 	${CC} ${CFLAGS} $^ ${LDLIBS} -o bin/bank
 
 bin/router : router/router-main.c router/router.c
