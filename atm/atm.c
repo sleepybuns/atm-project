@@ -323,6 +323,7 @@ int construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext
     struct timeval curr_time;
     
     unsigned char iv[IV_LEN];
+    unsigned char *plain_ptr = plaintext;
     int cipher_len, plain_len;
 
     gettimeofday(&curr_time, NULL);
@@ -360,7 +361,7 @@ int construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext
         if (arg != -1) {
             plain_len += 4;
         }
-        cipher_len = encrypt_aes256_cbc(plaintext, plain_len, atm->key, iv, ciphertext);
+        cipher_len = encrypt_aes256_cbc(plain_ptr, plain_len, atm->key, iv, ciphertext);
 
         if (cipher_len == 0) {
             continue;
