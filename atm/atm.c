@@ -131,7 +131,7 @@ void atm_process_command(ATM *atm, char *command)
                             // take in user input, including newline
                             fgets(pin, DATASIZE + 1, stdin);
                             
-                            if (pin[PIN_LEN] != '\n') {
+                            if (pin[strlen(pin) - 1] != '\n') {
                                 while (getchar() != '\n'); // clears rest of stdin
                             }
                             
@@ -301,6 +301,9 @@ void atm_process_command(ATM *atm, char *command)
         // DEBUG: printf("END SESSION\n");
         
         if(strlen(atm->curr_user) > 0) {
+            send_len = construct_message(atm, to_send, plaintext, ciphertext, "end-session", strlen("end-session"), -1);
+            atm_send(atm, to_send, send_len);
+                   
             end_session(atm);
             printf("User logged out\n");
         } else {
@@ -395,14 +398,14 @@ int process_remote_bank_message(ATM *atm, unsigned char *recvline, size_t len, c
 
     // extract time stamps 
     memcpy(&msg_time, plain_ptr, sizeof(long));
-    memcpy(&micro_msg_time, plain_ptr + sizeof(long), sizeof(int)); // MICROSECONDS CASE 
+    memcpy(&micro_msg_time, plain_ptr + sizeof(long), sizeof(int)); 
     plain_ptr += sizeof(long) + sizeof(int);
     plain_len -= sizeof(long) + sizeof(int);
 
     // check time stamps 
     if (msg_time < atm->last_mssg_time) {
         return 0; // Reject message 
-    } else if (msg_time == atm->last_mssg_time && micro_msg_time <= atm->last_mssg_micro_time) { // AND MICROSECONDS CASE
+    } else if (msg_time == atm->last_mssg_time && micro_msg_time <= atm->last_mssg_micro_time) { 
         return 0; // Reject message 
     }
     
