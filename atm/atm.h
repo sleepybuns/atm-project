@@ -57,7 +57,7 @@ void atm_free(ATM *atm);
 ssize_t atm_send(ATM *atm, unsigned char *data, size_t data_len);
 ssize_t atm_recv(ATM *atm, unsigned char *data, size_t max_data_len);
 void atm_process_command(ATM *atm, char *command);
-void construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg);
+int construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg);
 int process_remote_bank_message(ATM *atm, unsigned char *recvline, size_t len, char *recvcommand, int *recvarg);
 void end_session(ATM *atm);
 #endif
