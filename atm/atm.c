@@ -422,6 +422,9 @@ int process_remote_bank_message(ATM *atm, unsigned char *recvline, size_t len, c
     memcpy(recvcommand, plain_ptr, plain_len);
     recvcommand[plain_len] = '\0';
 
+    atm->last_mssg_time = msg_time;
+    atm->last_mssg_micro_time = micro_msg_time;
+
     return 1;
 }
 
