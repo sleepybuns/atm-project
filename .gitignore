@@ -1,1 +1,6 @@
 *~
+**/bin
+util/misc_util.c
+util/misc_util.h
+crypto_functions/enc_dec_hash_example.c
+**/.vscode
