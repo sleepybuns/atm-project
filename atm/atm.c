@@ -53,14 +53,14 @@ void atm_free(ATM *atm)
     }
 }
 
-ssize_t atm_send(ATM *atm, char *data, size_t data_len)
+ssize_t atm_send(ATM *atm, unsigned char *data, size_t data_len)
 {
     // Returns the number of bytes sent; negative on error
     return sendto(atm->sockfd, data, data_len, 0,
                   (struct sockaddr*) &atm->rtr_addr, sizeof(atm->rtr_addr));
 }
 
-ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len)
+ssize_t atm_recv(ATM *atm, unsigned char *data, size_t max_data_len)
 {
     // Returns the number of bytes received; negative on error
     return recvfrom(atm->sockfd, data, max_data_len, 0, NULL, NULL);
@@ -72,10 +72,10 @@ void atm_process_command(ATM *atm, char *command)
 
     char action[DATASIZE + 1] = "", arg[DATASIZE + 1] = "", extra[DATASIZE + 1] = "";
     FILE *input;
-    char recvline[DATASIZE + 1] = "", recvcommand[DATASIZE + 1];
+    unsigned char recvline[DATASIZE + 1] = ""; char recvcommand[DATASIZE + 1];
     char pin[DATASIZE + 1] = "", user[MAX_USERNAME_LEN + 1] = "";
     unsigned char ciphertext[DATASIZE + 1] = "", plaintext[DATASIZE + 1] = ""; 
-    char to_send[DATASIZE + 1] = "", command_option[DATASIZE + 1] = "";
+    unsigned char to_send[DATASIZE + 1] = ""; char command_option[DATASIZE + 1] = "";
     int n, values = 0, invalid = 0, i, amount, process_result = 0, recvarg;
 
     // DEBUG: printf(" String read in: %s\n", command);
@@ -113,7 +113,7 @@ void atm_process_command(ATM *atm, char *command)
 
                     do { // continues receiving messages until one is accepted
                         construct_message(atm, to_send, plaintext, ciphertext, "login-request", strlen("login-request"), -1);
-                        atm_send(atm, to_send, strlen(to_send));
+                        atm_send(atm, to_send, strlen((char*) to_send));
                         atm->session_state = LOGIN_REQ_WAITING;
 
                         // Get bank reply
@@ -139,7 +139,7 @@ void atm_process_command(ATM *atm, char *command)
                             if(strlen(pin) > (PIN_LEN + 1) || pin[PIN_LEN] != '\n') { // also check with bank records to confirm pin
                                 
                                 construct_message(atm, to_send, plaintext, ciphertext, "unverifiable", strlen("unverifiable"), -1);
-                                atm_send(atm, to_send, strlen(to_send));
+                                atm_send(atm, to_send, strlen((char*) to_send));
                                 memset(atm->active_card, 0, CARD_LEN + 1); // clear card
                                 atm->session_state = INITIAL;
 
@@ -154,7 +154,7 @@ void atm_process_command(ATM *atm, char *command)
                                 
                                 do { // continues receiving messages until one is accepted
                                     construct_message(atm, to_send, plaintext, ciphertext, verify_cmd, strlen(verify_cmd), -1);
-                                    atm_send(atm, to_send, strlen(to_send));
+                                    atm_send(atm, to_send, strlen((char*) to_send));
                                     atm->session_state = VERIFY_PIN_WAITING;
 
                                     // Get bank reply
@@ -220,7 +220,7 @@ void atm_process_command(ATM *atm, char *command)
                 do { // continues receiving messages until one is accepted
                     strcpy(command_option, "withdraw");
                     construct_message(atm, to_send, plaintext, ciphertext, command_option, strlen(command_option), amount);
-                    atm_send(atm, to_send, strlen(to_send));
+                    atm_send(atm, to_send, strlen((char*) to_send));
                     atm->session_state = WITHDRAW_WAITING;
 
                     // Get bank reply
@@ -240,7 +240,7 @@ void atm_process_command(ATM *atm, char *command)
                         strcpy(command_option, "dispensed");
                         memcpy(&num, recvcommand + strlen(subcommand) + 1, sizeof(int)); // extract amount to dispense
                         construct_message(atm, to_send, plaintext, ciphertext, command_option, strlen(command_option), num);
-                        atm_send(atm, to_send, strlen(to_send));
+                        atm_send(atm, to_send, strlen((char*) to_send));
                         atm->session_state = ACTIVE_SESSION;
                         printf("$%d dispensed\n", num);
                     } else { // insufficient case OR any other case
@@ -264,7 +264,7 @@ void atm_process_command(ATM *atm, char *command)
 
                 do { // continues receiving messages until one is accepted
                     construct_message(atm, to_send, plaintext, ciphertext, "balance", strlen("balance"), -1);
-                    atm_send(atm, to_send, strlen(to_send));
+                    atm_send(atm, to_send, strlen((char*) to_send));
                     atm->session_state = BALANCE_WAITING;
 
                     // Get bank reply
@@ -319,7 +319,7 @@ void atm_process_command(ATM *atm, char *command)
 
 // Constructs plaintext from required components, encrypts, and adds IV 
 // Places result in to_send
-void construct_message(ATM *atm, char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg) {
+void construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg) {
 
     struct timeval curr_time;
     
@@ -376,7 +376,7 @@ void construct_message(ATM *atm, char *to_send, unsigned char *plaintext, unsign
 
 // Takes ciphertext and restores plaintext, returning received command in recvcommand
 // and returning integer value 0 if message is rejected, otherwise 1
-int process_remote_bank_message(ATM *atm, char *recvline, size_t len, char *recvcommand, int *recvarg) {
+int process_remote_bank_message(ATM *atm, unsigned char *recvline, size_t len, char *recvcommand, int *recvarg) {
 
     unsigned char iv[IV_LEN], plaintext[DATASIZE + 1];
     char *plain_ptr = (char*) plaintext, curr_card[CARD_LEN + 1];

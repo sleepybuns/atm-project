@@ -45,7 +45,7 @@ typedef struct _ATM
     // TODO add more, as needed
     char curr_user[MAX_USERNAME_LEN + 1];
     int session_state;
-    char key[KEY_LEN];
+    unsigned char key[KEY_LEN];
     char active_card[CARD_LEN + 1];
     time_t last_mssg_time; 
     suseconds_t last_mssg_micro_time;
@@ -54,10 +54,10 @@ typedef struct _ATM
 
 ATM* atm_create();
 void atm_free(ATM *atm);
-ssize_t atm_send(ATM *atm, char *data, size_t data_len);
-ssize_t atm_recv(ATM *atm, char *data, size_t max_data_len);
+ssize_t atm_send(ATM *atm, unsigned char *data, size_t data_len);
+ssize_t atm_recv(ATM *atm, unsigned char *data, size_t max_data_len);
 void atm_process_command(ATM *atm, char *command);
-void construct_message(ATM *atm, char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg);
-int process_remote_bank_message(ATM *atm, char *recvline, size_t len, char *recvcommand, int *recvarg);
+void construct_message(ATM *atm, unsigned char *to_send, unsigned char *plaintext, unsigned char *ciphertext, char *cmd_option, int option_len, int arg);
+int process_remote_bank_message(ATM *atm, unsigned char *recvline, size_t len, char *recvcommand, int *recvarg);
 void end_session(ATM *atm);
 #endif
