@@ -102,50 +102,29 @@ void atm_process_command(ATM *atm, char *command)
                 user[strlen(arg)] = '\0';
                 // DEBUG: printf("Checking user: %s\n", user);
     
-                // Check for user existence in bank, this initial message has distinct composition <time(sec)><time(usec)><user>
-                send_len = construct_message(atm, 1, to_send, plaintext, ciphertext, user, strlen(user), -1);
-                atm_send(atm, to_send, send_len);
-                atm->session_state = VERIFY_USER_WAITING;
+                do { // continues receiving messages until one is accepted
+                    // Check for user existence in bank, this initial message has distinct composition <time(sec)><time(usec)><user>
+                    send_len = construct_message(atm, 1, to_send, plaintext, ciphertext, user, strlen(user), -1);
+                    atm_send(atm, to_send, send_len);
+                    atm->session_state = VERIFY_USER_WAITING;
 
-                // Get bank reply, this message also has distinct composition <time(sec)><time(usec)><yes/no>
-                n = atm_recv(atm, recvline, DATASIZE);
-                recvline[n] = 0;
-                process_result = process_remote_bank_message(atm, 1, recvline, n, recvcommand, &recvarg);
+                    // Get bank reply, this message also has distinct composition <time(sec)><time(usec)><yes/no>
+                    n = atm_recv(atm, recvline, DATASIZE);
+                    recvline[n] = 0;
+                    process_result = process_remote_bank_message(atm, 1, recvline, n, recvcommand, &recvarg);
 
-                // If user does not exist in bank, print "No such user\n\n" and return
+                } while (!process_result);
+
                 if (atm->session_state == VERIFY_USER_WAITING) {
-                    if(!strcmp(recvcommand, "no")) {
-                        atm->session_state = INITIAL;
-                        printf("No such user\n\n");
-                        return;
-                    }
-                } 
+                    if(!strcmp(recvcommand, "user-found")) {
+                        // check <user>.card file is present
+                        strcat(arg, ".card");
+                        if((input = fopen(arg, "r")) == NULL) { // looks in curr dir (bin)
+                            printf("Unable to access %s's card\n", user);
+                        } else { 
+                            // store active card number 
+                            fread(atm->active_card, 1, CARD_LEN, input);
 
-                // check <user>.card file is present
-                strcat(arg, ".card");
-                if((input = fopen(arg, "r")) == NULL) { // looks in curr dir (bin)
-                    printf("Unable to access %s's card\n", user);
-                } else {
-
-                    // store active card number 
-                    fread(atm->active_card, 1, CARD_LEN, input);
-
-                    do { // continues receiving messages until one is accepted
-                        send_len = construct_message(atm, 0, to_send, plaintext, ciphertext, "login-request", strlen("login-request"), -1);
-                        atm_send(atm, to_send, send_len);
-                        atm->session_state = LOGIN_REQ_WAITING;
-
-                        // Get bank reply
-                        n = atm_recv(atm, recvline, DATASIZE);
-                        recvline[n] = 0;
-                        process_result = process_remote_bank_message(atm, 0, recvline, n, recvcommand, &recvarg);
-
-                    } while (!process_result);
-                    
-
-                    if (atm->session_state == LOGIN_REQ_WAITING) {
-                        if(!strcmp(recvcommand, "user-found")) {
-                        
                             printf("PIN? ");
                             // take in user input, including newline
                             fgets(pin, DATASIZE + 1, stdin);
@@ -197,20 +176,19 @@ void atm_process_command(ATM *atm, char *command)
                                 }
                                 
                             }
+                        }
                     
-                        } else { // user-not-found case OR any other case 
-                            memset(atm->active_card, 0, CARD_LEN + 1); // clear card
-                            atm->session_state = INITIAL;
-                            printf("No such user\n");
-                        }  
-                    }
-                    
+                    } else { // user-not-found case OR any other case 
+                        atm->session_state = INITIAL;
+                        printf("No such user\n");
+                    }  
+                        
                 }
-            
-                memset(user, 0, MAX_USERNAME_LEN + 1); // clear temporary username buffer
-                
             }
-
+                
+            
+            memset(user, 0, MAX_USERNAME_LEN + 1); // clear temporary username buffer
+                
         } else {
             printf("A user is already logged in\n");
         }

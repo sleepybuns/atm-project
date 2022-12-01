@@ -26,11 +26,10 @@
 
 #define INITIAL 0 
 #define VERIFY_USER_WAITING 11
-#define LOGIN_REQ_WAITING 22
-#define VERIFY_PIN_WAITING 33
-#define ACTIVE_SESSION 44
-#define WITHDRAW_WAITING 55
-#define BALANCE_WAITING 66
+#define VERIFY_PIN_WAITING 22
+#define ACTIVE_SESSION 33
+#define WITHDRAW_WAITING 44
+#define BALANCE_WAITING 55
 
 
 char curr_user[20]; // Indicator of an active session
