@@ -9,6 +9,7 @@ bin:
 
 bin/init : 
 	cp init.sh bin/init
+	chmod u+x bin/init
 
 bin/atm : atm/atm-main.c atm/atm.c util/misc_util.c
 	${CC} ${CFLAGS} $^ ${LDLIBS} -o bin/atm
