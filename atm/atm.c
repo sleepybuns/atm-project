@@ -105,7 +105,7 @@ void atm_process_command(ATM *atm, char *command)
                 // check <user>.card file is present
                 strcat(arg, ".card");
                 if((input = fopen(arg, "r")) == NULL) { // looks in curr dir (bin)
-                    printf("Unable to access %s's card\n", user);
+                    printf("No such user\n");
                 } else {
 
                     // store active card number 
