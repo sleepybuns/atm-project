@@ -55,6 +55,7 @@ typedef struct _Bank {
     
     Userfile *logged_user;
     char active_card[CARD_LEN + 1];
+    char active_user[MAX_USERNAME_LEN + 1];
     int session_state;
     time_t last_msg_sec;
     suseconds_t last_msg_usec; 
@@ -71,5 +72,6 @@ void bank_process_local_command(Bank *bank, char *command, size_t len);
 void bank_process_remote_command(Bank *bank, unsigned char *command, size_t len);
 void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len);
 int construct_response (Bank *bank, unsigned char *response, char *command, int cmd_len);
+int construct_response_initial (Bank *bank, unsigned char *response, char *command, int cmd_len);
 #endif
 

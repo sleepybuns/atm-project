@@ -38,6 +38,7 @@ Bank* bank_create(char *data) {
     bank->acc_nums = hash_table_create(100);
     bank->logged_user = NULL;
     memset(bank->active_card, 0, CARD_LEN + 1);
+    memset(bank->active_user, 0, MAX_USERNAME_LEN + 1);
     bank->session_state = 0;
     gettimeofday(&time, NULL);
     bank->last_msg_sec = time.tv_sec;
@@ -214,125 +215,143 @@ void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t le
         return;
     }
     
-    strncpy(curr_card_num, plain_ptr, CARD_LEN); // extract card number
-    plain_ptr += CARD_LEN;
+    if (bank->session_state == NO_SESH) { 
+        char username[MAX_USERNAME_LEN + 1] = "";
+        //extract username
+        sscanf(plain_ptr, "%s", username);
 
-    if (bank->session_state == NO_SESH) {
-
-        if(strcmp(plain_ptr, "login-request")){
-            return; // nothing else would be valid here except login-request
-        }
-        // store card number in bank cache
-        strcpy(bank->active_card, curr_card_num);
-
-        if (hash_table_find(bank->acc_nums, bank->active_card)) {
+        if (hash_table_find(bank->accounts, username)) {
             strcpy(reply_cmd, "user-found");
             bank->session_state = AWAIT_PIN;
-            reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
+            strcpy(bank->active_user, username); //set active user
 
         } else { // user not found
             strcpy(reply_cmd, "no-user-found");
-            reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
-            memset(bank->active_card, 0, CARD_LEN + 1); // clear cache;
+            // bank state not changed
         }
-        
+        reply_msg_len = construct_response_initial(bank, send_to_atm, reply_cmd, strlen(reply_cmd)); // change
+
     } else {
         char subcmd[DATASIZE + 1] = "";
         int index = 0;
 
-        // check card number 
-        if (strcmp(curr_card_num, bank->active_card)) {
-            return; // card number does not match the active user
-        }
+        strncpy(curr_card_num, plain_ptr, CARD_LEN); // extract card number
+        plain_ptr += CARD_LEN;
     
         sscanf(plain_ptr, "%s %n", subcmd, &index);
 
         if (bank->session_state == AWAIT_PIN) {
             if (!strcmp(subcmd, "unverifiable")) {
-                // reset bank cache and state
-                memset(bank->active_card, 0, CARD_LEN + 1); 
+                // reset bank state
                 bank->session_state = NO_SESH;
+                memset(bank->active_user, 0, MAX_USERNAME_LEN + 1);
                 // save time stamps
                 bank->last_msg_sec = msg_time_sec; 
                 bank->last_msg_usec = msg_time_usec;
                 return;
 
-            } else if (!strcmp(subcmd, "verify")) {
-                char pin_verify[PIN_LEN + 1] = "", *curr_username;
+            } else if (!strcmp(subcmd, "verify")) { 
+                char pin_verify[PIN_LEN + 1] = "", *verify_username;
                 Userfile *curr_userfile;
 
                 sscanf(plain_ptr + index, "%s", pin_verify);
-                curr_username = hash_table_find(bank->acc_nums, curr_card_num);
-                curr_userfile = hash_table_find(bank->accounts, curr_username);
+                strcpy(bank->active_card, curr_card_num);// save card number
+                
+                // check card for the username
+                verify_username = hash_table_find(bank->acc_nums, curr_card_num);
 
-                if (strcmp(pin_verify, curr_userfile->pin)) {
+                if (verify_username == NULL || strcmp(verify_username, bank->active_user)) {
                     strcpy(reply_cmd, "access-denied");
                     reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
-                    memset(bank->active_card, 0, CARD_LEN + 1); // clear cache;
+                    memset(bank->active_card, 0, CARD_LEN + 1); // clear card
+                    memset(bank->active_user, 0, MAX_USERNAME_LEN + 1); // clear user
                     bank->session_state = NO_SESH; 
 
-                } else { // pin is approved
-                    strcpy(reply_cmd, "access-granted");
-                    reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
-                    bank->session_state = OPEN_SESH;
-                    bank->logged_user = curr_userfile; // save userfile in cache
+                } else { // now to verify the pin
+                    curr_userfile = hash_table_find(bank->accounts, verify_username); // get userfile
+
+                    if (strcmp(pin_verify, curr_userfile->pin)) {
+                        strcpy(reply_cmd, "access-denied");
+                        reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
+                        memset(bank->active_card, 0, CARD_LEN + 1); // clear card
+                        memset(bank->active_user, 0, MAX_USERNAME_LEN + 1); // clear user
+                        bank->session_state = NO_SESH; 
+
+                    } else { // pin is approved
+                        strcpy(reply_cmd, "access-granted");
+                        reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
+                        bank->session_state = OPEN_SESH;
+                        bank->logged_user = curr_userfile; // save userfile in cache
+                    }
                 }
             } else {
                 return;
             }
 
-        } else if (bank->session_state == 11) {
-            if (!strcmp(subcmd, "withdraw")) {
-                int amt = 0;
+        } else {
+            // check card number 
+            if (strcmp(curr_card_num, bank->active_card)) {
+                return; // card number does not match the active user
+            }
+
+            if (bank->session_state == 11) {
+                if (!strcmp(subcmd, "withdraw")) {
+                    int amt = 0;
                 
-                memcpy(&amt, plain_ptr + strlen(subcmd) + 1, sizeof(int));
+                    memcpy(&amt, plain_ptr + strlen(subcmd) + 1, sizeof(int));
 
-                if (bank->logged_user->balance - amt < 0) {
-                    strcpy(reply_cmd, "insufficient");
-                    reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
+                    if (bank->logged_user->balance - amt < 0) {
+                        strcpy(reply_cmd, "insufficient");
+                        reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd));
 
-                } else { // user has enough money
-                    strcpy(reply_cmd, "dispense");
-                    memcpy(reply_cmd + 9, &amt, sizeof(int));
+                    } else { // user has enough money
+                        strcpy(reply_cmd, "dispense");
+                        memcpy(reply_cmd + 9, &amt, sizeof(int));
+                        // we are including the int after the command seperated by a NULL byte
+                        reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd) + 1 + sizeof(int));
+                        bank->session_state = WITHDRAW;
+                    }
+
+                } else if (!strcmp(subcmd, "balance")) {
+                    strcpy(reply_cmd, "balance");
+                    memcpy(reply_cmd + 8, &(bank->logged_user->balance), sizeof(int));
                     // we are including the int after the command seperated by a NULL byte
                     reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd) + 1 + sizeof(int));
-                    bank->session_state = WITHDRAW;
+
+                } else if (!strcmp(subcmd, "end-session")) {
+                    // reset bank cache and state
+                    bank->logged_user = NULL;
+                    memset(bank->active_card, 0, CARD_LEN + 1);
+                    memset(bank->active_user, 0, MAX_USERNAME_LEN + 1);
+                    bank->session_state = NO_SESH;
+                    // record time stamps
+                    bank->last_msg_sec = msg_time_sec; 
+                    bank->last_msg_usec = msg_time_usec;
+                    return;
+
+                } else {
+                    return;
+
                 }
+            } else if (bank->session_state == 33) {
+                if (!strcmp(subcmd, "dispensed")) {
+                    int amt = 0;
 
-            } else if (!strcmp(subcmd, "balance")) {
-                strcpy(reply_cmd, "balance");
-                memcpy(reply_cmd + 8, &(bank->logged_user->balance), sizeof(int));
-                // we are including the int after the command seperated by a NULL byte
-                reply_msg_len = construct_response(bank, send_to_atm, reply_cmd, strlen(reply_cmd) + 1 + sizeof(int));
+                    memcpy(&amt, plain_ptr + strlen(subcmd) + 1, sizeof(int));
+                    bank->logged_user->balance -= amt;
+                    bank->session_state = OPEN_SESH;
+                    // record time stamps
+                    bank->last_msg_sec = msg_time_sec; 
+                    bank->last_msg_usec = msg_time_usec;
+                    return;
 
-            } else if (!strcmp(subcmd, "end-session")) {
-                // reset bank cache and state
-                bank->logged_user = NULL;
-                memset(bank->active_card, 0, CARD_LEN + 1);
-                bank->session_state = NO_SESH;
-                // record time stamps
-                bank->last_msg_sec = msg_time_sec; 
-                bank->last_msg_usec = msg_time_usec;
-                return;
+                } else {
+                    return;
+                }
             } else {
                 return;
             }
-        } else if (bank->session_state == 33) {
-            if (!strcmp(subcmd, "dispensed")) {
-                int amt = 0;
-
-                memcpy(&amt, plain_ptr + strlen(subcmd) + 1, sizeof(int));
-                bank->logged_user->balance -= amt;
-                bank->session_state = OPEN_SESH;
-                // record time stamps
-                bank->last_msg_sec = msg_time_sec; 
-                bank->last_msg_usec = msg_time_usec;
-                return;
-
-            } else {
-                return;
-            }
-        } 
+        }
     }
 
     // encrypt reply and send
@@ -357,10 +376,11 @@ void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t le
 }
 
 void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len) {
-    unsigned char iv[IV_LEN], ciphertext[DATASIZE], hash[HASH_LEN];
+    unsigned char iv[IV_LEN], ciphertext[DATASIZE], hash[HASH_LEN], zero[HASH_LEN];
     char lil_buff[3] = "";
     int cipher_len = 0, hash_len, idx;
 
+    memset(zero, 0, HASH_LEN);
     do {
         if (RAND_priv_bytes(iv, IV_LEN) <= 0) {
             continue;
@@ -371,6 +391,9 @@ void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plai
         }
         hash_len = digest_message(ciphertext, cipher_len, hash, EVP_md5());
         if (hash_len == 0) {
+            continue;
+        }
+        if (memcmp(hash, zero, HASH_LEN) == 0) {
             continue;
         }
         for (idx = 0; idx < hash_len; idx++) {
@@ -409,4 +432,22 @@ int construct_response (Bank *bank, unsigned char *response, char *command, int 
     return sizeof(long) + sizeof(int) + CARD_LEN + cmd_len + 1; 
 }
 
+int construct_response_initial (Bank *bank, unsigned char *response, char *command, int cmd_len) {
+    struct timeval curr_time;
 
+    gettimeofday(&curr_time, NULL);
+    bank->last_msg_sec = curr_time.tv_sec; // save time stamps in bank cache
+    bank->last_msg_usec = curr_time.tv_usec;
+
+    // write time stamps into response
+    memcpy(response, &(curr_time.tv_sec), sizeof(long));
+    memcpy(response + sizeof(long), &(curr_time.tv_usec), sizeof(int));
+    response += (sizeof(long) + sizeof(int));
+
+    // write the response command
+    memcpy(response, command, cmd_len);
+    response[cmd_len] = '\0'; // add NULL byte at the end
+
+    // '+ 1' at the end to include the NULL byte 
+    return sizeof(long) + sizeof(int) + cmd_len + 1; 
+}
