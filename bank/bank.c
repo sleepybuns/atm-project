@@ -376,11 +376,10 @@ void bank_process_remote_command(Bank *bank, unsigned char *recv_data, size_t le
 }
 
 void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plaintext_len) {
-    unsigned char iv[IV_LEN], ciphertext[DATASIZE], hash[HASH_LEN], zero[HASH_LEN];
+    unsigned char iv[IV_LEN], ciphertext[DATASIZE], hash[HASH_LEN];
     char lil_buff[3] = "";
     int cipher_len = 0, hash_len, idx;
 
-    memset(zero, 0, HASH_LEN);
     do {
         if (RAND_priv_bytes(iv, IV_LEN) <= 0) {
             continue;
@@ -391,9 +390,6 @@ void gen_card_num(Bank *bank, char *card_num, unsigned char *plaintext, int plai
         }
         hash_len = digest_message(ciphertext, cipher_len, hash, EVP_md5());
         if (hash_len == 0) {
-            continue;
-        }
-        if (memcmp(hash, zero, HASH_LEN) == 0) {
             continue;
         }
         for (idx = 0; idx < hash_len; idx++) {
